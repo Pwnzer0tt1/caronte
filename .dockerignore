@@ -3,3 +3,4 @@ pcaps/*.pcap
 pcaps/*.pcapng
 pcaps/processing/*.pcap
 pcaps/processing/*.pcapng
+Dockerfile

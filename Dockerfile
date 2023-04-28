@@ -1,23 +1,24 @@
-# Build backend with go
-FROM golang:1.16 AS BACKEND_BUILDER
-
-# Install tools and libraries
+#Build backend with go
+FROM debian:sid-slim AS BACKEND_BUILDER
 RUN apt-get update && \
-	DEBIAN_FRONTEND=noninteractive apt-get install -qq \
+    DEBIAN_FRONTEND=noninteractive apt-get install -qq curl golang-go
+
+#Install tools and libraries
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -qq \
 	git \
 	pkg-config \
 	libpcap-dev \
-	libhyperscan-dev
+	libvectorscan-dev
 
 WORKDIR /caronte
 
 COPY . ./
 
-RUN export VERSION=$(git describe --tags --abbrev=0) && \
-    go mod download && \
-    go build -ldflags "-X main.Version=$VERSION" && \
-	mkdir -p build && \
-	cp -r caronte pcaps/ scripts/ shared/ test_data/ build/
+RUN export VERSION=$(git describe --tags --abbrev=0)
+RUN go mod download
+RUN go build -ldflags "-X main.Version=$VERSION"
+RUN mkdir -p build 
+RUN cp -r caronte pcaps/ scripts/ shared/ test_data/ build/
 
 
 # Build frontend via yarn
@@ -31,17 +32,18 @@ RUN yarn install && yarn build --production=true
 
 
 # LAST STAGE
-FROM ubuntu:20.04
+FROM debian:sid-slim
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -qq curl golang-go
 
 COPY --from=BACKEND_BUILDER /caronte/build /opt/caronte
-
 COPY --from=FRONTEND_BUILDER /caronte-frontend/build /opt/caronte/frontend/build
 
 RUN apt-get update && \
 	DEBIAN_FRONTEND=noninteractive apt-get install -qq \
 	libpcap-dev \
-	libhyperscan-dev && \
-	rm -rf /var/lib/apt/lists/*
+	libvectorscan-dev &&\
+  rm -rf /var/lib/apt/lists/*
 
 ENV GIN_MODE release
 

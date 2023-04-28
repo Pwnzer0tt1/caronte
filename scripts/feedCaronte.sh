@@ -1,52 +1,46 @@
-#!/bin/bash - 
-#===============================================================================
-#
-#          FILE: feedCaronte.sh
-# 
-#         USAGE: ./feedCaronte.sh PCAP_DIR_PATH
-# 
-#   DESCRIPTION: 
-# 
-#       OPTIONS: ---
-#  REQUIREMENTS: inotify-tools, curl
-#          BUGS: ---
-#         NOTES: test in Debian Buster
-#        AUTHOR: Andrea Giovine (AG), 
-#  ORGANIZATION: 
-#       CREATED: 17/08/2020 16:36:57
-#      REVISION:  ---
-#===============================================================================
+#!/usr/bin/env bash
 
-set -o nounset                              # Treat unset variables as an error
+#	.		TIMEOUT    CARONTE_IP
+#./caronte.sh 30 https://caronte.com game
 
-CHECK_INOTIFY=$(dpkg-query -W -f='${status}' 'inotify-tools')
-
-if [[ "$CHECK_INOTIFY" != 'install ok installed' ]]; then
-	echo "Install inotify-tools"
-	exit 1
-fi
-
-CHECK_CURL=$(dpkg-query -W -f='${Status}' 'curl')
-
-if [[ "$CHECK_CURL" != 'install ok installed' ]]; then
-	echo "Install curl"
-	exit 1
-fi
-
-if [[ "$#" -ne 1 ]]; then
-	echo "Need 1 arg"
+if [[ "$#" -ne 3 ]]; then
+	echo "Usage: ./caronte.sh <timeout> <ip:port> <interface>"
 	exit 2
 fi
 
-PCAP_DIR="$1"
+PROC_TIMEOUT=$$
+UPLOAD_PROC=$$
+THIS_PROC=$$
 
-if [[ -z "$PCAP_DIR" ]]; then
-	echo "Need path to dir where are store pcaps"
-	exit 2
-fi
+trap 'echo; kill -9 $PROC_TIMEOUT; kill -9 $UPLOAD_PROC; kill -9 $THIS_PROC' INT
 
-inotifywait -m "$PCAP_DIR" -e close_write -e moved_to |
-           while read dir action file; do
-             echo "The file $file appeared in directory $dir via $action"
-             curl -F "file=@$file" "http://localhost:3333/api/pcap/upload"
-           done
+TIMEOUT_TCPDUMP="$1"
+CARONTE_ADDR="$2"
+INTERFACE_NAME="$3"
+
+mkdir upload 2> /dev/null
+
+function get_pcaps {
+  while true; do
+	  timeout $TIMEOUT_TCPDUMP tcpdump -w "data.pcap" -i $INTERFACE_NAME port not 22 and port not 4444 &> /dev/null & PROC_TIMEOUT=$!
+    wait $PROC_TIMEOUT
+    mv data.pcap "upload/data-$(md5sum <<< date | awk '{ print $1 }').pcap"
+  done
+}
+
+function upload_pcaps { 
+  while true; do
+    files=`ls ./upload/*.pcap 2> /dev/null`
+    for file in $files
+    do
+      curl -F "file=@$file" -F "flush_all=true" "$CARONTE_ADDR/api/pcap/upload" && rm $file
+      echo
+    done
+    sleep `echo $TIMEOUT_TCPDUMP/2 | bc`
+  done
+}
+
+upload_pcaps & UPLOAD_PROC=$!
+
+get_pcaps
+
