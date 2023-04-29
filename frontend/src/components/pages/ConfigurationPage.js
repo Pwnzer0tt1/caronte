@@ -64,8 +64,8 @@ class ConfigurationPage extends Component {
             this.setState({serverAddressError: "invalid ip_address"});
             valid = false;
         }
-        if (settings.config["flag_regex"].length < 8) {
-            this.setState({flagRegexError: "flag_regex.length < 8"});
+        if (settings.config["flag_regex"].length < 1) {
+            this.setState({flagRegexError: "flag_regex.length < 1"});
             valid = false;
         }
 
