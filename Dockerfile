@@ -17,11 +17,13 @@ RUN mkdir -p build
 RUN cp -r caronte pcaps/ scripts/ shared/ test_data/ build/
 
 # Build frontend via yarn
-FROM node:20-bullseye-slim as FRONTEND_BUILDER
-ENV NODE_OPTIONS=--openssl-legacy-provider
+FROM node:16 as FRONTEND_BUILDER
+
 WORKDIR /caronte-frontend
+
 COPY ./frontend ./
-RUN yarn install --network-timeout 300000 && yarn build --production=true
+
+RUN yarn install  --network-timeout 300000  && yarn build --production=true
 
 # LAST STAGE
 FROM debian:bookworm-slim
