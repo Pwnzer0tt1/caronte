@@ -9,7 +9,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -qq \
 	libpcap-dev libvectorscan-dev
 
 WORKDIR /caronte
-COPY . ./
+COPY ./backend/ ./
 RUN export VERSION=$(git describe --tags --abbrev=0)
 RUN go mod download
 RUN go build -ldflags "-X main.Version=$VERSION"

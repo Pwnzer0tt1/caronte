@@ -21,7 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/eciavatta/caronte/parsers"
+	"github.com/pwnzer0tt1/caronte/parsers"
 	log "github.com/sirupsen/logrus"
 	"strings"
 	"time"

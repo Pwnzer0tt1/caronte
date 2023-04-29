@@ -1,4 +1,4 @@
-module github.com/eciavatta/caronte
+module github.com/pwnzer0tt1/caronte
 
 go 1.14
 
