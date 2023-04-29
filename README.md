@@ -1,6 +1,5 @@
 # `Pwnzer0tt1's caronte$`
 
-[![Test Status](https://github.com/pwnzer0tt1/caronte/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/pwnzer0tt1/caronte/actions/workflows/test.yml)
 [![Deploy Status](https://github.com/pwnzer0tt1/caronte/actions/workflows/deploy.yml/badge.svg)](https://github.com/pwnzer0tt1/caronte/actions/workflows/deploy.yml)
 [![codecov](https://codecov.io/gh/pwnzer0tt1/caronte/branch/develop/graph/badge.svg)](https://codecov.io/gh/pwnzer0tt1/caronte)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/009dca44f4da4118a20aed2b9b7610c0)](https://www.codacy.com/manual/pwnzer0tt1/caronte?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=pwnzer0tt1/caronte&amp;utm_campaign=Badge_Grade)
