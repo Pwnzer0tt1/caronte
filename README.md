@@ -1,7 +1,6 @@
 # `Pwnzer0tt1's caronte$`
 
 [![Deploy Status](https://github.com/pwnzer0tt1/caronte/actions/workflows/deploy.yml/badge.svg)](https://github.com/pwnzer0tt1/caronte/actions/workflows/deploy.yml)
-[![codecov](https://codecov.io/gh/pwnzer0tt1/caronte/branch/develop/graph/badge.svg)](https://codecov.io/gh/pwnzer0tt1/caronte)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/009dca44f4da4118a20aed2b9b7610c0)](https://www.codacy.com/manual/pwnzer0tt1/caronte?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=pwnzer0tt1/caronte&amp;utm_campaign=Badge_Grade)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/tag/pwnzer0tt1/caronte)
 ![Language](https://img.shields.io/badge/language-go-blue)
