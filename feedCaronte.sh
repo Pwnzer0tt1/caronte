@@ -4,7 +4,7 @@
 #./caronte.sh 30 https://caronte.com game
 
 if [[ "$#" -ne 3 ]]; then
-	echo "Usage: ./caronte.sh <timeout> <ip:port> <interface>"
+	echo "Usage: $0 <timeout> <ip:port> <interface>"
 	exit 2
 fi
 
