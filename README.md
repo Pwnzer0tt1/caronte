@@ -74,8 +74,6 @@ Run the binary with `./caronte`. The available configuration options are:
 The configuration takes place at runtime on the first start via the graphical interface or via API. It is necessary to setup:
 -   the `server_address`: the ip address of the vulnerable machine. Must be the destination address of all the connections in the pcaps. If each vulnerable service has an own ip, this param accept also a CIDR address. The address can be either IPv4 both IPv6
 -   the `flag_regex`: the regular expression that matches a flag. Usually provided on the competition rules page
--   `auth_required`: if true a basic authentication is enabled to protect the analyzer
--   an optional `accounts` array, which contains the credentials of authorized users
 
 ## Documentation
 The backend, written in Go language, it is designed as a service. It exposes REST API that are used by the frontend written using React. The list of available APIs with their explanation is available here: [https://app.swaggerhub.com/apis-docs/eciavatta/caronte/WIP](https://app.swaggerhub.com/apis-docs/eciavatta/caronte/WIP)

@@ -162,8 +162,8 @@ class RulesPane extends Component {
             this.setState({ruleBytesError: "min_bytes > max_bytes"});
             valid = false;
         }
-        if (rule.patterns.length < 1) {
-            this.setState({rulePatternsError: "patterns.length < 1"});
+        if (rule.patterns.length == 0) {
+            this.setState({rulePatternsError: "patterns.length == 0"});
             valid = false;
         }
 

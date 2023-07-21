@@ -17,21 +17,17 @@
 
 package main
 
-import (
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
-)
+import "errors"
+
 
 type Config struct {
 	ServerAddress string `json:"server_address" binding:"required,ip|cidr" bson:"server_address"`
-	FlagRegex     string `json:"flag_regex" binding:"required,min=8" bson:"flag_regex"`
-	AuthRequired  bool   `json:"auth_required" bson:"auth_required"`
+	FlagRegex     string `json:"flag_regex" binding:"required,min=1" bson:"flag_regex"`
 }
 
 type ApplicationContext struct {
 	Storage                     Storage
 	Config                      Config
-	Accounts                    gin.Accounts
 	RulesManager                RulesManager
 	PcapImporter                *PcapImporter
 	ConnectionsController       ConnectionsController
@@ -48,70 +44,52 @@ func CreateApplicationContext(storage Storage, version string) (*ApplicationCont
 	var configWrapper struct {
 		Config Config
 	}
+
 	if err := storage.Find(Settings).Filter(OrderedDocument{{"_id", "config"}}).
 		First(&configWrapper); err != nil {
 		return nil, err
-	}
-	var accountsWrapper struct {
-		Accounts gin.Accounts
-	}
-
-	if err := storage.Find(Settings).Filter(OrderedDocument{{"_id", "accounts"}}).
-		First(&accountsWrapper); err != nil {
-		return nil, err
-	}
-	if accountsWrapper.Accounts == nil {
-		accountsWrapper.Accounts = make(gin.Accounts)
 	}
 
 	applicationContext := &ApplicationContext{
 		Storage:                storage,
 		Config:                 configWrapper.Config,
-		Accounts:               accountsWrapper.Accounts,
 		Version:                version,
 	}
 
 	return applicationContext, nil
 }
 
-func (sm *ApplicationContext) SetConfig(config Config) {
+func (sm *ApplicationContext) SetConfig(config Config) (error) {
 	sm.Config = config
-	sm.Configure()
+  err := sm.Configure()
+  if err != nil { return err }
 	var upsertResults interface{}
 	if _, err := sm.Storage.Update(Settings).Upsert(&upsertResults).
 		Filter(OrderedDocument{{"_id", "config"}}).One(UnorderedDocument{"config": config}); err != nil {
-		log.WithError(err).WithField("config", config).Error("failed to update config")
+		return err
 	}
-}
-
-func (sm *ApplicationContext) SetAccounts(accounts gin.Accounts) {
-	sm.Accounts = accounts
-	var upsertResults interface{}
-	if _, err := sm.Storage.Update(Settings).Upsert(&upsertResults).
-		Filter(OrderedDocument{{"_id", "accounts"}}).One(UnorderedDocument{"accounts": accounts}); err != nil {
-		log.WithError(err).Error("failed to update accounts")
-	}
+  return nil
 }
 
 func (sm *ApplicationContext) SetNotificationController(notificationController *NotificationController) {
 	sm.NotificationController = notificationController
 }
 
-func (sm *ApplicationContext) Configure() {
+func (sm *ApplicationContext) Configure() (error) {
 	if sm.IsConfigured {
-		return
+		return errors.New("Not configured yet")
 	}
 	if sm.Config.ServerAddress == "" || sm.Config.FlagRegex == "" {
-		return
+		return errors.New("Server Ip or Flag Regex not set")
 	}
 	serverNet := ParseIPNet(sm.Config.ServerAddress)
 	if serverNet == nil {
-		return
+		return errors.New("Invalid server address")
 	}
 
 	rulesManager, err := LoadRulesManager(sm.Storage, sm.Config.FlagRegex)
 	if err != nil {
-		log.WithError(err).Panic("failed to create a RulesManager")
+		return err
 	}
 	sm.RulesManager = rulesManager
 	sm.PcapImporter = NewPcapImporter(sm.Storage, *serverNet, sm.RulesManager, sm.NotificationController)
@@ -121,4 +99,5 @@ func (sm *ApplicationContext) Configure() {
 	sm.ConnectionStreamsController = NewConnectionStreamsController(sm.Storage)
 	sm.StatisticsController = NewStatisticsController(sm.Storage)
 	sm.IsConfigured = true
+	return nil
 }

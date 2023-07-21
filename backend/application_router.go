@@ -54,7 +54,6 @@ func CreateApplicationRouter(applicationContext *ApplicationContext,
 
 		var settings struct {
 			Config   Config       `json:"config" binding:"required"`
-			Accounts gin.Accounts `json:"accounts" binding:"required"`
 		}
 
 		if err := c.ShouldBindJSON(&settings); err != nil {
@@ -62,8 +61,12 @@ func CreateApplicationRouter(applicationContext *ApplicationContext,
 			return
 		}
 
-		applicationContext.SetConfig(settings.Config)
-		applicationContext.SetAccounts(settings.Accounts)
+    err := applicationContext.SetConfig(settings.Config)
+
+    if err != nil {
+      badRequest(c, err)
+      return
+    }
 
 		c.JSON(http.StatusAccepted, gin.H{})
 		notificationController.Notify("setup", gin.H{})
@@ -77,7 +80,6 @@ func CreateApplicationRouter(applicationContext *ApplicationContext,
 
 	api := router.Group("/api")
 	api.Use(SetupRequiredMiddleware(applicationContext))
-	api.Use(AuthRequiredMiddleware(applicationContext))
 	{
 		api.GET("/rules", func(c *gin.Context) {
 			success(c, applicationContext.RulesManager.GetRules())
@@ -446,17 +448,6 @@ func SetupRequiredMiddleware(applicationContext *ApplicationContext) gin.Handler
 		} else {
 			c.Next()
 		}
-	}
-}
-
-func AuthRequiredMiddleware(applicationContext *ApplicationContext) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if !applicationContext.Config.AuthRequired {
-			c.Next()
-			return
-		}
-
-		gin.BasicAuth(applicationContext.Accounts)(c)
 	}
 }
 
