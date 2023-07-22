@@ -8,8 +8,8 @@ services:
       - db:/data/db
 
   caronte:
-    image: ghcr.io/pwnzer0tt1/caronte:latest
-    #build: .
+    #image: ghcr.io/pwnzer0tt1/caronte:latest
+    build: .
     ports:
       - "3333:3333"
     environment:
