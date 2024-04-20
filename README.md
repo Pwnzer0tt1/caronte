@@ -44,9 +44,15 @@ There are two ways to install Caronte:
 
 ### Run with Docker
 The only things to do are:
--   clone the repo, with `git clone https://github.com/eciavatta/caronte.git`
+-   clone the repo, with `git clone https://github.com/Pwnzer0tt1/caronte.git`
 -   inside the `caronte` folder, run `docker-compose up -d`
 -   wait for the image to be compiled and open browser at `http://localhost:3333`
+
+## Caronte SSH tunnel
+
+```bash
+ssh -t root@$VULNBOX_IP -o 'StrictHostKeyChecking no' -R 3333:$CARONTE_IP:3333 "base64 -d <<< '$(base64 -i ./feedCaronte.sh)' > /tmp/feedCaronte.sh && bash /tmp/feedCaronte.sh 30 127.0.0.1:3333 -i game -s0 port not 22"
+```
 
 ### Manually installation
 The first thing to do is to install the dependencies:

@@ -1,48 +1,41 @@
 #!/usr/bin/env bash
 
-#	.		TIMEOUT    CARONTE_IP
-#./caronte.sh 30 https://caronte.com game
+#	     TIMEOUT    CARONTE_IP
+#./caronte.sh 30 https://caronte.com 
 
-if [[ "$#" -lt 3 ]]; then
-	echo "Usage: $0 <timeout> <ip:port> <interface>"
+if [[ "$#" -lt 2 ]]; then
+	echo "Usage: $0 <timeout> <ip:port> <tcpdump_command...>"
 	exit 2
 fi
 
 CURRENT_DIRECTORY=$(realpath $(dirname "$0"))
-TMPFILE_SCRIPT="/tmp/caronte_upload_move_script_tmp.sh"
 cd $CURRENT_DIRECTORY
 
 UPLOAD_PROC=$$
 THIS_PROC=$$
 
-trap 'echo; kill -9 $UPLOAD_PROC; kill -9 $THIS_PROC' INT
 
 TIMEOUT_TCPDUMP="$1"
 CARONTE_ADDR="$2"
-INTERFACE_NAME="$3"
 
 mkdir upload 2> /dev/null
 
-echo "#!/usr/bin/env bash
-cd $CURRENT_DIRECTORY
-mv \$1 upload/\$1 
-" > $TMPFILE_SCRIPT
-chmod +x $TMPFILE_SCRIPT
-
 function upload_pcaps { 
   while true; do
-    files=`ls ./upload/*.pcap 2> /dev/null`
-    for file in $files
-    do
-      curl -F "file=@$file" -F "flush_all=false" "$CARONTE_ADDR/api/pcap/upload" && rm $file
-      echo
-    done
-    sleep `echo $TIMEOUT_TCPDUMP/2 | bc`
+    file=`ls ./upload/*.pcap 2> /dev/null`; file=($file); file=${file[1]} #Take the file that has finised to be written
+    echo $file;
+    if [ -z "$file" ]
+    then
+        sleep `echo $TIMEOUT_TCPDUMP/2 | bc`
+    else
+        curl -F "file=@$file" -F "flush_all=false" "$CARONTE_ADDR/api/pcap/upload" && rm $file
+    fi
   done
 }
 
 upload_pcaps & UPLOAD_PROC=$!
 
-args=($@)
-tcpdump -G $TIMEOUT_TCPDUMP -z $TMPFILE_SCRIPT -w capture-%Y%m%d-%H%M%S.pcap -i $INTERFACE_NAME ${args[@]:4:$(echo "$#")} 
+trap 'echo; kill -9 $UPLOAD_PROC; kill -9 $THIS_PROC' INT
 
+args=($@)
+exec tcpdump -Z $USER -G $TIMEOUT_TCPDUMP -w ./upload/capture-%Y%m%d-%H%M%S.pcap ${args[@]:2:$(echo "$#")} 
