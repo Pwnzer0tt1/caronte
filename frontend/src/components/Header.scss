@@ -5,6 +5,7 @@
 
   .header-content {
     display: flex;
+    align-items: center;
     width: 100%;
     padding: 0 10px;
     background-color: $color-primary-0;
@@ -12,11 +13,12 @@
 
   .header-title {
     width: 200px;
-    margin: 5px 0 5px 0;
+    margin: 5px 30px 5px 0;
   }
 
   .header-buttons {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     margin: 7px 0;
 
@@ -27,6 +29,7 @@
 
   .filters-bar {
     flex: 1;
+    align-items: center;
     padding: 3px 0;
 
     .filter,

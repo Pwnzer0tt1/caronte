@@ -8,8 +8,7 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
@@ -17,16 +16,13 @@
 
 import React, { Component } from "react";
 import { withRouter } from "react-router-dom";
-
-import ChartContainer from "react-timeseries-charts/lib/components/ChartContainer";
-import ChartRow from "react-timeseries-charts/lib/components/ChartRow";
-import Charts from "react-timeseries-charts/lib/components/Charts";
-import LineChart from "react-timeseries-charts/lib/components/LineChart";
-import MultiBrush from "react-timeseries-charts/lib/components/MultiBrush";
-import Resizable from "react-timeseries-charts/lib/components/Resizable";
-import YAxis from "react-timeseries-charts/lib/components/YAxis";
+import classNames from "classnames";
+import { 
+  LineChart, Line, XAxis, YAxis, 
+  ResponsiveContainer, Brush, Tooltip,
+  ReferenceLine, ReferenceArea
+} from 'recharts';
 import { TimeRange, TimeSeries } from "pondjs";
-import styler from "react-timeseries-charts/lib/js/styler";
 
 import backend from "../backend";
 import dispatcher from "../dispatcher";
@@ -36,7 +32,6 @@ import "./Timeline.scss";
 
 const minutes = 60 * 1000;
 const maxTimelineRange = 24 * 60 * minutes;
-import classNames from "classnames";
 
 const leftSelectionPaddingMultiplier = 24;
 const rightSelectionPaddingMultiplier = 8;
@@ -51,6 +46,7 @@ class Timeline extends Component {
 
     this.disableTimeSeriesChanges = false;
     this.selectionTimeout = null;
+    this.initialSelectionSet = false;
   }
 
   componentDidMount() {
@@ -69,14 +65,25 @@ class Timeline extends Component {
     );
     dispatcher.register("connection_updates", this.handleConnectionUpdates);
     dispatcher.register("notifications", this.handleNotifications);
-    dispatcher.register("pulse_timeline", this.handlePulseTimeline);
+
+    // Add keyboard controls for the timeline
+    document.addEventListener('keydown', this.handleKeyDown);
+
+    // Listen for custom drag events
+    window.addEventListener('timeline_drag', this.handleTimelineDrag);
   }
 
   componentWillUnmount() {
     dispatcher.unregister(this.handleConnectionsFiltersCallback);
     dispatcher.unregister(this.handleConnectionUpdates);
     dispatcher.unregister(this.handleNotifications);
-    dispatcher.unregister(this.handlePulseTimeline);
+
+    document.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('timeline_drag', this.handleTimelineDrag);
+
+    // Cleanup any lingering handlers
+    document.removeEventListener('mousemove', window.timelineHandleMouseMove);
+    document.removeEventListener('mouseup', window.timelineHandleMouseUp);
   }
 
   loadStatistics = async (metric) => {
@@ -165,6 +172,17 @@ class Timeline extends Component {
     const start = series.range().begin();
     const end = series.range().end();
 
+    let initialSelection = this.state.selection;
+    if (!this.initialSelectionSet && series.size() > 2) {
+      const lastIndex = series.size() - 1;
+      const preLastIndex = Math.max(0, lastIndex - 10);
+      initialSelection = new TimeRange(
+        series.at(preLastIndex).timestamp(),
+        series.at(lastIndex).timestamp()
+      );
+      this.initialSelectionSet = true;
+    }
+
     this.setState({
       metric,
       series,
@@ -172,6 +190,7 @@ class Timeline extends Component {
       columns,
       start,
       end,
+      selection: initialSelection,
     });
   };
 
@@ -188,23 +207,49 @@ class Timeline extends Component {
   };
 
   createStyler = () => {
+    const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00C49F'];
     if (this.state.metric === "matched_rules") {
-      return styler(
-        this.state.rules.map((rule) => {
-          return { key: rule.id, color: rule.color, width: 2 };
-        })
-      );
+      if (!this.state.rules) return [];
+      return this.state.rules.map((rule, index) => {
+        return { 
+          dataKey: rule.id, 
+          color: rule.color || colors[index % colors.length],
+          strokeWidth: 2 
+        };
+      });
     } else {
-      return styler(
-        Object.keys(this.state.services).map((port) => {
-          return {
-            key: port,
-            color: this.state.services[port].color,
-            width: 2,
-          };
-        })
-      );
+      if (!this.state.services) return [];
+      return Object.keys(this.state.services).map((port, index) => {
+        return {
+          dataKey: port,
+          color: this.state.services[port].color || colors[index % colors.length],
+          strokeWidth: 2
+        };
+      });
     }
+  };
+
+  formatTimeSeriesForRecharts = () => {
+    if (!this.state.series) return [];
+    
+    const series = this.state.series;
+    const columns = this.state.columns || [];
+    const result = [];
+    
+    // Convert TimeSeries data to recharts format
+    for (let i = 0; i < series.size(); i++) {
+      const event = series.at(i);
+      const time = event.timestamp().getTime();
+      const point = { time: new Date(time) };
+      
+      columns.forEach(col => {
+        point[col] = event.get(col);
+      });
+      
+      result.push(point);
+    }
+    
+    return result;
   };
 
   handleTimeRangeChange = (timeRange) => {
@@ -221,6 +266,7 @@ class Timeline extends Component {
       clearTimeout(this.selectionTimeout);
     }
     this.selectionTimeout = setTimeout(() => {
+      log.debug(`Selection: ${timeRange.begin().toISOString()} to ${timeRange.end().toISOString()}`);
       dispatcher.dispatch("timeline_updates", {
         from: timeRange.begin(),
         to: timeRange.end(),
@@ -286,11 +332,6 @@ class Timeline extends Component {
     }
   };
 
-  handlePulseTimeline = (payload) => {
-    this.setState({ pulseTimeline: true });
-    setTimeout(() => this.setState({ pulseTimeline: false }), payload.duration);
-  };
-
   adjustSelection = () => {
     const seriesRange = this.state.series.range();
     const selection = this.state.selection;
@@ -313,64 +354,283 @@ class Timeline extends Component {
     return Math[func](...values);
   };
 
+  handleChartClick = (e) => {
+    if (!e || !this.state.series || !e.activeLabel) return;
+    
+    const clickedTime = new Date(e.activeLabel);
+    if (this.state.selection) {
+      this.handleSelectionChange(new TimeRange(clickedTime, 
+        new Date(clickedTime.getTime() + 10 * minutes)));
+    }
+  };
+
+  handleTimelineDrag = (e) => {
+    if (!this.state.selection) return;
+    
+    const { movePercent } = e.detail;
+    const totalTime = this.state.end.getTime() - this.state.start.getTime();
+    const moveTime = totalTime * movePercent;
+    
+    const selectionDuration = this.state.selection.end().getTime() - 
+      this.state.selection.begin().getTime();
+    
+    let newStart = new Date(this.state.selection.begin().getTime() + moveTime);
+    let newEnd = new Date(newStart.getTime() + selectionDuration);
+    
+    // Keep selection within bounds
+    if (newStart < this.state.start) {
+      newStart = this.state.start;
+      newEnd = new Date(newStart.getTime() + selectionDuration);
+    }
+    
+    if (newEnd > this.state.end) {
+      newEnd = this.state.end;
+      newStart = new Date(newEnd.getTime() - selectionDuration);
+    }
+    
+    this.handleSelectionChange(new TimeRange(newStart, newEnd));
+  }
+
+  handleKeyDown = (e) => {
+    if (!this.state.selection) return;
+    
+    const selection = this.state.selection;
+    const selectionDuration = selection.end().getTime() - selection.begin().getTime();
+    let newStart = selection.begin();
+    let newEnd = selection.end();
+    
+    // Amount to move (10% of current selection width)
+    const moveAmount = selectionDuration * 0.1;
+    
+    switch (e.key) {
+      case 'ArrowLeft':
+        if (e.shiftKey) {
+          // Shrink from right
+          newEnd = new Date(Math.max(
+            newStart.getTime() + minutes,
+            newEnd.getTime() - moveAmount
+          ));
+        } else {
+          // Move left
+          newStart = new Date(Math.max(
+            this.state.start.getTime(),
+            newStart.getTime() - moveAmount
+          ));
+          newEnd = new Date(newStart.getTime() + selectionDuration);
+        }
+        break;
+        
+      case 'ArrowRight':
+        if (e.shiftKey) {
+          // Expand to right
+          newEnd = new Date(Math.min(
+            this.state.end.getTime(),
+            newEnd.getTime() + moveAmount
+          ));
+        } else {
+          // Move right
+          newEnd = new Date(Math.min(
+            this.state.end.getTime(),
+            newEnd.getTime() + moveAmount
+          ));
+          newStart = new Date(newEnd.getTime() - selectionDuration);
+        }
+        break;
+    }
+    
+    if (newStart.getTime() !== selection.begin().getTime() || 
+        newEnd.getTime() !== selection.end().getTime()) {
+      this.handleSelectionChange(new TimeRange(newStart, newEnd));
+      e.preventDefault();
+    }
+  }
+
   render() {
     if (!this.state.series) {
-      return null;
+      return <footer className="footer"><div className="time-line">Loading timeline data...</div></footer>;
+    }
+
+    const chartData = this.formatTimeSeriesForRecharts();
+    const lines = this.createStyler();
+    
+    const selection = this.state.selection;
+    const selectionStart = selection ? selection.begin().getTime() : null;
+    const selectionEnd = selection ? selection.end().getTime() : null;
+
+    let startIndex = 0;
+    let endIndex = chartData.length - 1;
+    
+    if (selection && chartData.length > 0) {
+      const startTime = selection.begin().getTime();
+      const endTime = selection.end().getTime();
+      
+      startIndex = Math.max(0, chartData.findIndex(point => 
+        point.time.getTime() >= startTime));
+      
+      if (startIndex === -1) startIndex = 0;
+      
+      const foundEndIndex = chartData.findIndex(point => 
+        point.time.getTime() >= endTime);
+      
+      endIndex = foundEndIndex !== -1 ? foundEndIndex : chartData.length - 1;
+    } else if (chartData.length > 10) {
+      startIndex = chartData.length - 10;
+      endIndex = chartData.length - 1;
     }
 
     return (
       <footer className="footer">
         <div
-          className={classNames("time-line", {
-            "pulse-timeline": this.state.pulseTimeline,
-          })}
+          className={classNames("time-line")}
+          style={{ minHeight: '150px', cursor: 'pointer' }}
         >
-          <Resizable>
-            <ChartContainer
-              timeRange={this.state.timeRange}
-              enableDragZoom={false}
-              paddingTop={5}
-              minDuration={60000}
-              maxTime={this.state.end}
-              minTime={this.state.start}
-              paddingLeft={0}
-              paddingRight={0}
-              paddingBottom={0}
-              enablePanZoom={true}
-              utc={false}
-              onTimeRangeChanged={this.handleTimeRangeChange}
-            >
-              <ChartRow height={this.props.height - 70}>
-                <YAxis
-                  id="axis1"
-                  hideAxisLine
-                  min={this.aggregateSeries("min")}
-                  max={this.aggregateSeries("max")}
-                  width="35"
-                  type="linear"
-                  transition={300}
+          {!chartData || chartData.length === 0 ? (
+            <div style={{ textAlign: 'center', paddingTop: '50px' }}>
+              No timeline data available. Try changing filters or metrics.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={this.props.height || 200}>
+              <LineChart
+                data={chartData}
+                margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
+                onClick={this.handleChartClick}
+              >
+                <XAxis 
+                  dataKey="time" 
+                  type="date"
+                  scale="time"
+                  domain={['auto', 'auto']}
+                  tickFormatter={(time) => new Date(time).toLocaleTimeString()}
+                  height={30}
                 />
-                <Charts>
-                  <LineChart
-                    axis="axis1"
-                    series={this.state.series}
-                    columns={this.state.columns}
-                    style={this.createStyler()}
-                    interpolation="curveBasis"
+                <YAxis width={40} />
+                <Tooltip
+                  labelFormatter={(time) => new Date(time).toLocaleString()}
+                  contentStyle={{
+                    backgroundColor: '#333',
+                    border: 'none',
+                    borderRadius: '4px',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.4)'
+                  }}
+                  itemStyle={{ color: '#fff' }}
+                  labelStyle={{ color: '#fff', fontWeight: 'bold', marginBottom: '5px' }}
+                  formatter={(value, name) => [`${value} ${name}`, '']}
+                  cursor={{ stroke: '#666', strokeWidth: 1 }}
+                  content={(props) => {
+                    if (!props.active || !props.payload || props.payload.length === 0) {
+                      return null;
+                    }
+                    
+                    const getMetricLabel = (metric) => {
+                      const metricLabels = {
+                        'connections_per_service': 'Connections',
+                        'client_bytes_per_service': 'Client Bytes',
+                        'server_bytes_per_service': 'Server Bytes',
+                        'duration_per_service': 'Duration',
+                        'matched_rules': 'Rule'
+                      };
+                      return metricLabels[this.state.metric] || 'Value';
+                    };
+                    
+                    return (
+                      <div style={{
+                        backgroundColor: '#333',
+                        padding: '10px',
+                        border: 'none',
+                        borderRadius: '4px',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.4)',
+                        color: 'white'
+                      }}>
+                        <p style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>
+                          {new Date(props.label).toLocaleString()}
+                        </p>
+                        {props.payload.map((entry, index) => (
+                          <div key={index} style={{ 
+                            display: 'flex',
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            marginBottom: index < props.payload.length - 1 ? '5px' : 0
+                          }}>
+                            <span style={{ 
+                              display: 'inline-block', 
+                              width: '10px', 
+                              height: '10px', 
+                              backgroundColor: entry.color,
+                              marginRight: '5px'
+                            }}></span>
+                            <span style={{ marginRight: '10px' }}>{entry.dataKey}:</span>
+                            <span style={{ fontWeight: 'bold' }}>
+                              {entry.value} {getMetricLabel(this.state.metric)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }}
+                />
+                
+                {selectionStart && selectionEnd && (
+                  <ReferenceArea
+                    x1={new Date(selectionStart)}
+                    x2={new Date(selectionEnd)}
+                    strokeOpacity={0.5}
+                    fill="#8884d8"
+                    fillOpacity={0.2}
+                    strokeWidth={1}
                   />
-
-                  <MultiBrush
-                    timeRanges={[this.state.selection]}
-                    allowSelectionClear={false}
-                    allowFreeDrawing={false}
-                    onTimeRangeChanged={this.handleSelectionChange}
+                )}
+                
+                {lines.map((line, index) => (
+                  <Line
+                    key={index}
+                    type="monotone"
+                    dataKey={line.dataKey}
+                    stroke={line.color}
+                    strokeWidth={line.strokeWidth + 1}
+                    dot={false}
+                    activeDot={{ r: 5 }}
+                    isAnimationActive={false}
                   />
-                </Charts>
-              </ChartRow>
-            </ChartContainer>
-          </Resizable>
+                ))}
+                
+                <Brush
+                  dataKey="time"
+                  height={40}
+                  stroke="#8884d8"
+                  strokeWidth={2}
+                  fill="rgba(136, 132, 216, 0.3)"
+                  travellerWidth={10}
+                  travellerStroke="#6450b8"
+                  travellerStrokeWidth={2}
+                  travellerFill="#fff"
+                  startIndex={startIndex}
+                  endIndex={endIndex}
+                  onChange={(brushData) => {
+                    if (brushData.startIndex !== undefined && 
+                        brushData.endIndex !== undefined &&
+                        chartData[brushData.startIndex] && 
+                        chartData[brushData.endIndex]) {
+                      
+                      const startTime = chartData[brushData.startIndex].time;
+                      const endTime = chartData[brushData.endIndex].time;
+                      
+                      if (this.selectionTimeout) {
+                        clearTimeout(this.selectionTimeout);
+                      }
+                      this.selectionTimeout = setTimeout(() => {
+                        this.handleSelectionChange(new TimeRange(startTime, endTime));
+                        this.selectionTimeout = null;
+                      }, 150);
+                      
+                    }
+                  }}
+                  
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
 
-          <div className="metric-selection">
+          <div className="metric-selection">            
             <ChoiceField
               inline
               small
@@ -382,16 +642,18 @@ class Timeline extends Component {
                 "matched_rules",
               ]}
               values={[
-                "connections_per_service",
-                "client_bytes_per_service",
-                "server_bytes_per_service",
-                "duration_per_service",
-                "matched_rules",
+                "Connections by Service",
+                "Client Bytes by Service",
+                "Server Bytes by Service",
+                "Duration by Service",
+                "Matched Rules",
               ]}
               onChange={(metric) =>
                 this.loadStatistics(metric).then(() =>
                   log.debug("Statistics loaded after metric changes")
-                )
+                ).catch(err => {
+                  log.error("Failed to load statistics:", err);
+                })
               }
               value={this.state.metric}
             />

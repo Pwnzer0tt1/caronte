@@ -125,7 +125,7 @@ func LoadRulesManager(storage Storage, flagRegex string) (RulesManager, error) {
 
 	// if there are no rules in database (e.g. first run), set flagRegex as first rule
 	if len(rulesManager.rules) == 0 {
-		_, _ = rulesManager.AddRule(context.Background(), Rule{
+		_, err := rulesManager.AddRule(context.Background(), Rule{
 			Name:  "flag_out",
 			Color: "#e53935",
 			Notes: "Mark connections where the flags are stolen",
@@ -133,7 +133,10 @@ func LoadRulesManager(storage Storage, flagRegex string) (RulesManager, error) {
 				{Regex: flagRegex, Direction: DirectionToClient, Flags: RegexFlags{Utf8Mode: true}},
 			},
 		})
-		_, _ = rulesManager.AddRule(context.Background(), Rule{
+		if err != nil {
+			return nil, err
+		}
+		_, err = rulesManager.AddRule(context.Background(), Rule{
 			Name:  "flag_in",
 			Color: "#43A047",
 			Notes: "Mark connections where the flags are placed",
@@ -141,6 +144,9 @@ func LoadRulesManager(storage Storage, flagRegex string) (RulesManager, error) {
 				{Regex: flagRegex, Direction: DirectionToServer, Flags: RegexFlags{Utf8Mode: true}},
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		if err := rulesManager.generateDatabase(rules[len(rules)-1].ID); err != nil {
 			return nil, err

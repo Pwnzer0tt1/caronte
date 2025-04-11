@@ -28,7 +28,7 @@
     "react-scripts": "^5.0.1",
     "react-string-replace": "^0.4.4",
     "react-tag-autocomplete": "^6.3.0",
-    "react-timeseries-charts": "^0.16.1",
+    "recharts": "^2.15.2",
     "sass": "^1.86.3",
     "typed.js": "^2.1.0"
   },

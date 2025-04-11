@@ -33,7 +33,7 @@ class MainPane extends Component {
         const nl = "^600\n^400";
         const options = {
             strings: [
-                `welcome to caronte!^1000 the current version is ${this.props.version}` + nl +
+                `welcome to caronte!` + nl +
                 "caronte is a network analyzer,^300 it is able to read pcaps and extract connections", // 0
                 "the left panel lists all connections that have already been closed" + nl +
                 "scrolling up the list will load the most recent connections,^300 downward the oldest ones", // 1
