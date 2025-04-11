@@ -8,8 +8,7 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
@@ -18,12 +17,13 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -53,6 +53,14 @@ func NewNotificationController(applicationContext *ApplicationContext) *Notifica
 		register:           make(chan *client),
 		unregister:         make(chan *client),
 		applicationContext: applicationContext,
+	}
+}
+
+// DisableOriginCheck disables the origin check for websocket connections
+// This should only be used in development/debug mode
+func (nc *NotificationController) DisableOriginCheck() {
+	nc.upgrader.CheckOrigin = func(r *http.Request) bool {
+		return true // Allow all origins
 	}
 }
 

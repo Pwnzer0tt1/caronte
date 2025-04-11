@@ -41,7 +41,7 @@ if $SETUP ; then
 	curl \
 		--header "Content-Type: application/json"  \
 		--request POST \
-		--data '{"config": { "flag_regex": "flg[a-zA-Z0-9]{25}" }' \
+		--data '{"config": {"server_address": "10.10.1.1", "flag_regex": "flg[a-zA-Z0-9]{25}", "auth_required": false}, "accounts": {"usr1": "pwd1"}}' \
 		http://localhost:3333/setup
 
 	setup_service 8080  crashair        E53935

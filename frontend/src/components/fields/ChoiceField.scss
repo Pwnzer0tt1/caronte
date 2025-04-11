@@ -1,4 +1,4 @@
-@import "../../colors.scss";
+@use "../../colors.scss" as *;
 
 .choice-field {
   font-size: 0.9em;

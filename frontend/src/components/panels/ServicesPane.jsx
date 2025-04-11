@@ -31,8 +31,8 @@ import LinkPopover from "../objects/LinkPopover";
 import "./common.scss";
 import "./ServicesPane.scss";
 
-const classNames = require("classnames");
-const _ = require("lodash");
+import classNames from 'classnames';
+import _ from 'lodash';
 
 class ServicesPane extends Component {
 

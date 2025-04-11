@@ -83,6 +83,7 @@ type RulesManager interface {
 	AddRule(context context.Context, rule Rule) (RowID, error)
 	GetRule(id RowID) (Rule, bool)
 	UpdateRule(context context.Context, id RowID, rule Rule) (bool, error)
+	DeleteRule(context context.Context, id RowID) error
 	GetRules() []Rule
 	FillWithMatchedRules(connection *Connection, clientMatches map[uint][]PatternSlice, serverMatches map[uint][]PatternSlice)
 	DatabaseUpdateChannel() chan RulesDatabase
@@ -124,7 +125,7 @@ func LoadRulesManager(storage Storage, flagRegex string) (RulesManager, error) {
 
 	// if there are no rules in database (e.g. first run), set flagRegex as first rule
 	if len(rulesManager.rules) == 0 {
-    _, err := rulesManager.AddRule(context.Background(), Rule{
+		_, _ = rulesManager.AddRule(context.Background(), Rule{
 			Name:  "flag_out",
 			Color: "#e53935",
 			Notes: "Mark connections where the flags are stolen",
@@ -132,8 +133,7 @@ func LoadRulesManager(storage Storage, flagRegex string) (RulesManager, error) {
 				{Regex: flagRegex, Direction: DirectionToClient, Flags: RegexFlags{Utf8Mode: true}},
 			},
 		})
-    if err != nil { return nil, err }
-		_, err = rulesManager.AddRule(context.Background(), Rule{
+		_, _ = rulesManager.AddRule(context.Background(), Rule{
 			Name:  "flag_in",
 			Color: "#43A047",
 			Notes: "Mark connections where the flags are placed",
@@ -141,7 +141,6 @@ func LoadRulesManager(storage Storage, flagRegex string) (RulesManager, error) {
 				{Regex: flagRegex, Direction: DirectionToServer, Flags: RegexFlags{Utf8Mode: true}},
 			},
 		})
-    if err != nil { return nil, err }
 	} else {
 		if err := rulesManager.generateDatabase(rules[len(rules)-1].ID); err != nil {
 			return nil, err
@@ -164,7 +163,7 @@ func (rm *rulesManagerImpl) AddRule(context context.Context, rule Rule) (RowID, 
 
 	if err := rm.generateDatabase(rule.ID); err != nil {
 		rm.mutex.Unlock()
-		return EmptyRowID(), err
+		log.WithError(err).WithField("rule", rule).Panic("failed to generate database")
 	}
 	rm.mutex.Unlock()
 
@@ -209,6 +208,21 @@ func (rm *rulesManagerImpl) UpdateRule(context context.Context, id RowID, rule R
 	}
 
 	return updated, nil
+}
+
+func (rm *rulesManagerImpl) DeleteRule(context context.Context, id RowID) error {
+	err := rm.storage.Delete(Rules).Context(context).Filter(OrderedDocument{{"_id", id}}).One()
+	if err != nil {
+		log.WithError(err).WithField("id", id).Panic("failed to delete rule on database")
+	} else {
+		rm.mutex.Lock()
+		rule := rm.rules[id]
+		delete(rm.rules, id)
+		delete(rm.rulesByName, rule.Name)
+		rm.mutex.Unlock()
+	}
+
+	return err
 }
 
 func (rm *rulesManagerImpl) GetRules() []Rule {
@@ -383,7 +397,6 @@ func (p *Pattern) BuildPattern() (*hyperscan.Pattern, error) {
 	}
 
 	hp.Flags |= hyperscan.SomLeftMost
-	hp.Flags |= hyperscan.AllowEmpty
 	if p.Flags.Caseless {
 		hp.Flags |= hyperscan.Caseless
 	}

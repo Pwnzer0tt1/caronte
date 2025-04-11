@@ -27,7 +27,7 @@ import RulesConnectionsFilter from "./filters/RulesConnectionsFilter";
 import StringConnectionsFilter from "./filters/StringConnectionsFilter";
 import "./Header.scss";
 
-const classNames = require("classnames");
+import classNames from 'classnames';
 
 class Header extends Component {
 

@@ -1,5 +1,5 @@
 #Build backend with go
-FROM debian:bookworm-slim AS BACKEND_BUILDER
+FROM debian:trixie-slim AS backend_builder
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -qq curl golang-go
 
@@ -17,24 +17,22 @@ RUN mkdir -p build
 RUN cp -r caronte pcaps/ scripts/ shared/ test_data/ build/
 
 # Build frontend via yarn
-FROM node:16 as FRONTEND_BUILDER
-
+FROM oven/bun AS frontend_builder
 WORKDIR /caronte-frontend
-
 COPY ./frontend ./
-
-RUN yarn install  --network-timeout 300000  && yarn build --production=true
+RUN bun install
+RUN bun run build
 
 # LAST STAGE
-FROM debian:bookworm-slim
-COPY --from=BACKEND_BUILDER /caronte/build /opt/caronte
-COPY --from=FRONTEND_BUILDER /caronte-frontend/build /opt/caronte/frontend/build
+FROM debian:trixie-slim
+COPY --from=backend_builder /caronte/build /opt/caronte
+COPY --from=frontend_builder /caronte-frontend/dist /opt/caronte/frontend/dist
 RUN apt-get update && \
 	DEBIAN_FRONTEND=noninteractive apt-get install -qq libpcap-dev libvectorscan-dev &&\
   rm -rf /var/lib/apt/lists/*
 
-ENV GIN_MODE release
-ENV MONGO_HOST mongo
-ENV MONGO_PORT 27017
+ENV GIN_MODE=release
+ENV MONGO_HOST=mongo
+ENV MONGO_PORT=27017
 WORKDIR /opt/caronte
 ENTRYPOINT ./caronte -mongo-host ${MONGO_HOST} -mongo-port ${MONGO_PORT} -assembly_memuse_log

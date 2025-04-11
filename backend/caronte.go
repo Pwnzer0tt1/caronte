@@ -20,45 +20,67 @@ package main
 import (
 	"flag"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"os"
+
+	"github.com/rs/zerolog"
+	log "github.com/rs/zerolog/log"
 )
 
 var Version string
 
-func main() {
-	mongoHost := flag.String("mongo-host", "localhost", "address of MongoDB")
-	mongoPort := flag.Int("mongo-port", 27017, "port of MongoDB")
-	dbName := flag.String("db-name", "caronte", "name of database to use")
+var (
+	mongoHost   = flag.String("mongo-host", "localhost", "address of MongoDB")
+	mongoPort   = flag.Int("mongo-port", 27017, "port of MongoDB")
+	dbName      = flag.String("db-name", "caronte", "name of database to use")
+	bindAddress = flag.String("bind-address", "0.0.0.0", "address where server is bind")
+	bindPort    = flag.Int("bind-port", 3333, "port where server is bind")
+)
 
-	bindAddress := flag.String("bind-address", "0.0.0.0", "address where server is bind")
-	bindPort := flag.Int("bind-port", 3333, "port where server is bind")
+func main() {
+
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	flag.Parse()
 
-	logFields := log.Fields{"host": *mongoHost, "port": *mongoPort, "dbName": *dbName}
+	log.Debug().Msg("starting caronte")
+
+	log.Debug().Str("host", *mongoHost).Int("port", *mongoPort).Str("dbName", *dbName).
+		Msg("connecting to MongoDB")
 	storage, err := NewMongoStorage(*mongoHost, *mongoPort, *dbName)
 	if err != nil {
-		log.WithError(err).WithFields(logFields).Fatal("failed to connect to MongoDB")
+		log.Fatal().Err(err).Msg("failed to connect to MongoDB")
 	}
 
 	if Version == "" {
 		Version = "undefined"
 	}
+
+	log.Debug().Msg("creating application context")
 	applicationContext, err := CreateApplicationContext(storage, Version)
 	if err != nil {
-		log.WithError(err).WithFields(logFields).Fatal("failed to create application context")
+		log.Fatal().Err(err).Msg("failed to create application context")
 	}
+	log.Debug().Msg("application context created")
 
+	log.Debug().Msg("creating notification controller")
 	notificationController := NewNotificationController(applicationContext)
 	go notificationController.Run()
 	applicationContext.SetNotificationController(notificationController)
+	log.Debug().Msg("notification controller created")
 
+	log.Debug().Msg("creating resources controller")
 	resourcesController := NewResourcesController(notificationController)
 	go resourcesController.Run()
+	log.Debug().Msg("resources controller created")
 
+	log.Debug().Msg("creating application router")
 	applicationContext.Configure()
 	applicationRouter := CreateApplicationRouter(applicationContext, notificationController, resourcesController)
-	if applicationRouter.Run(fmt.Sprintf("%s:%v", *bindAddress, *bindPort)) != nil {
-		log.WithError(err).WithFields(logFields).Fatal("failed to create the server")
+	log.Debug().Msg("application router created")
+
+	log.Debug().Msg("starting server")
+	err = applicationRouter.Run(fmt.Sprintf("%s:%v", *bindAddress, *bindPort))
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to create the server")
 	}
 }

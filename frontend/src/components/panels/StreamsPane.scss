@@ -1,4 +1,4 @@
-@import "../../colors";
+@use "../../colors" as *;
 
 .stream-pane {
   background-color: $color-primary-0;

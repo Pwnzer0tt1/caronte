@@ -1,0 +1,8 @@
+services:
+
+  mongo:
+    image: mongo:4
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+

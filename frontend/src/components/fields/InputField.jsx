@@ -20,7 +20,7 @@ import {randomClassName} from "../../utils";
 import "./common.scss";
 import "./InputField.scss";
 
-const classNames = require("classnames");
+import classNames from 'classnames';
 
 class InputField extends Component {
 

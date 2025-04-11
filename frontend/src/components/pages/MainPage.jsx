@@ -29,7 +29,6 @@ import SearchPane from "../panels/SearchPane";
 import ServicesPane from "../panels/ServicesPane";
 import StatsPane from "../panels/StatsPane";
 import StreamsPane from "../panels/StreamsPane";
-import Timeline from "../Timeline";
 import "./MainPage.scss";
 
 class MainPage extends Component {
@@ -88,7 +87,7 @@ class MainPage extends Component {
                 <ReflexSplitter propagate={true}/>
 
                 <ReflexElement className="page-footer" onResize={this.handleTimelineResize}>
-                    <Timeline height={this.state.timelineHeight}/>
+
                 </ReflexElement>
             </ReflexContainer>
         );

@@ -18,11 +18,12 @@ THIS_PROC=$$
 TIMEOUT_TCPDUMP="$1"
 CARONTE_ADDR="$2"
 
-mkdir upload 2> /dev/null
+mkdir /tmp/upload 2> /dev/null
+chmod 777 /tmp/upload &> /dev/null
 
 function upload_pcaps { 
   while true; do
-    file=`ls ./upload/*.pcap 2> /dev/null`; file=($file); file=${file[1]} #Take the file that has finised to be written
+    file=`ls /tmp/upload/*.pcap 2> /dev/null`; file=($file); file=${file[1]} #Take the file that has finised to be written
     echo $file;
     if [ -z "$file" ]
     then
@@ -38,4 +39,4 @@ upload_pcaps & UPLOAD_PROC=$!
 trap 'echo; kill -9 $UPLOAD_PROC; kill -9 $THIS_PROC' INT
 
 args=($@)
-exec tcpdump -Z $USER -G $TIMEOUT_TCPDUMP -w ./upload/capture-%Y%m%d-%H%M%S.pcap ${args[@]:2:$(echo "$#")} 
+exec tcpdump -G $TIMEOUT_TCPDUMP -w /tmp/upload/capture-%Y%m%d-%H%M%S.pcap ${args[@]:2:$(echo "$#")} 

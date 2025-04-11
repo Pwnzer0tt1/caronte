@@ -21,8 +21,8 @@ import backend from "../../backend";
 import dispatcher from "../../dispatcher";
 import TagField from "../fields/TagField";
 
-const classNames = require("classnames");
-const _ = require("lodash");
+import classNames from 'classnames';
+import _ from 'lodash';
 
 class RulesConnectionsFilter extends Component {
 

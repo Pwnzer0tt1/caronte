@@ -8,8 +8,8 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
@@ -33,16 +33,44 @@ import (
 
 func CreateApplicationRouter(applicationContext *ApplicationContext,
 	notificationController *NotificationController, resourcesController *ResourcesController) *gin.Engine {
+	// Disable websocket origin check in debug mode
+	if gin.IsDebugging() {
+		notificationController.DisableOriginCheck()
+	}
+
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.MaxMultipartMemory = 8 << 30
 
-	router.Use(static.Serve("/", static.LocalFile("./frontend/build", true)))
+	// Add CORS middleware when in debug mode
+	if gin.IsDebugging() {
+		router.Use(func(c *gin.Context) {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+			c.Writer.Header().Set("Access-Control-Expose-Headers", "Content-Length")
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+
+			if c.Request.Method == "OPTIONS" {
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
+
+			c.Next()
+		})
+		router.Use(static.Serve("/", static.LocalFile("../frontend/dist", true)))
+	} else {
+		router.Use(static.Serve("/", static.LocalFile("./frontend/dist", true)))
+	}
 
 	for _, path := range []string{"/connections/:id", "/pcaps", "/rules", "/services", "/stats", "/searches"} {
 		router.GET(path, func(c *gin.Context) {
-			c.File("./frontend/build/index.html")
+			if gin.IsDebugging() {
+				c.File("../frontend/dist/index.html")
+			} else {
+				c.File("./frontend/dist/index.html")
+			}
 		})
 	}
 
@@ -54,6 +82,7 @@ func CreateApplicationRouter(applicationContext *ApplicationContext,
 
 		var settings struct {
 			Config   Config       `json:"config" binding:"required"`
+			Accounts gin.Accounts `json:"accounts" binding:"required"`
 		}
 
 		if err := c.ShouldBindJSON(&settings); err != nil {
@@ -61,18 +90,28 @@ func CreateApplicationRouter(applicationContext *ApplicationContext,
 			return
 		}
 
-    err := applicationContext.SetConfig(settings.Config)
-
-    if err != nil {
-      badRequest(c, err)
-      return
-    }
+		applicationContext.SetConfig(settings.Config)
+		applicationContext.SetAccounts(settings.Accounts)
 
 		c.JSON(http.StatusAccepted, gin.H{})
 		notificationController.Notify("setup", gin.H{})
 	})
 
 	router.GET("/ws", func(c *gin.Context) {
+		// Add CORS headers specifically for websocket connections when in debug mode
+		if gin.IsDebugging() {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Extensions, Sec-WebSocket-Protocol")
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+
+			// For OPTIONS requests, immediately return success
+			if c.Request.Method == "OPTIONS" {
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
+		}
+
 		if err := notificationController.NotificationHandler(c.Writer, c.Request); err != nil {
 			serverError(c, err)
 		}
@@ -80,6 +119,7 @@ func CreateApplicationRouter(applicationContext *ApplicationContext,
 
 	api := router.Group("/api")
 	api.Use(SetupRequiredMiddleware(applicationContext))
+	api.Use(AuthRequiredMiddleware(applicationContext))
 	{
 		api.GET("/rules", func(c *gin.Context) {
 			success(c, applicationContext.RulesManager.GetRules())
@@ -114,6 +154,23 @@ func CreateApplicationRouter(applicationContext *ApplicationContext,
 				notFound(c, UnorderedDocument{"id": id})
 			} else {
 				success(c, rule)
+			}
+		})
+
+		api.DELETE("/rules/:id", func(c *gin.Context) {
+			hex := c.Param("id")
+			id, err := RowIDFromHex(hex)
+			if err != nil {
+				badRequest(c, err)
+				return
+			}
+
+			err = applicationContext.RulesManager.DeleteRule(c, id)
+			if err != nil {
+				notFound(c, UnorderedDocument{"id": id})
+			} else {
+				success(c, UnorderedDocument{})
+				notificationController.Notify("rules.delete", UnorderedDocument{"id": id})
 			}
 		})
 
@@ -218,7 +275,8 @@ func CreateApplicationRouter(applicationContext *ApplicationContext,
 				} else if FileExists(PcapsBasePath + sessionID + ".pcapng") {
 					c.FileAttachment(PcapsBasePath+sessionID+".pcapng", sessionID[:16]+".pcapng")
 				} else {
-					log.WithField("sessionID", sessionID).Panic("pcap file not exists")
+					log.WithField("sessionID", sessionID).Warn("requested pcap file not found")
+					notFound(c, gin.H{"session": sessionID})
 				}
 			} else {
 				notFound(c, gin.H{"session": sessionID})
@@ -448,6 +506,17 @@ func SetupRequiredMiddleware(applicationContext *ApplicationContext) gin.Handler
 		} else {
 			c.Next()
 		}
+	}
+}
+
+func AuthRequiredMiddleware(applicationContext *ApplicationContext) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !applicationContext.Config.AuthRequired {
+			c.Next()
+			return
+		}
+
+		gin.BasicAuth(applicationContext.Accounts)(c)
 	}
 }
 

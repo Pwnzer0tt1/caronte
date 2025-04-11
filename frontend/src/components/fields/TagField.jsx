@@ -21,8 +21,8 @@ import {randomClassName} from "../../utils";
 import "./common.scss";
 import "./TagField.scss";
 
-const classNames = require("classnames");
-const _ = require("lodash");
+import classNames from 'classnames';
+import _ from 'lodash';
 
 class TagField extends Component {
 

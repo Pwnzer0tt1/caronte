@@ -61,7 +61,7 @@ func NewStreamHandler(connection ConnectionHandler, streamFlow StreamFlow, scann
 		indexes:        make([]int, 0, InitialBlockCount),
 		timestamps:     make([]time.Time, 0, InitialBlockCount),
 		lossBlocks:     make([]bool, 0, InitialBlockCount),
-		documentsIDs:   make([]RowID, 0, 1),               // most of the time the stream fit in one document
+		documentsIDs:   make([]RowID, 0, 1), // most of the time the stream fit in one document
 		patternMatches: make(map[uint][]PatternSlice, connection.PatternsDatabaseSize()),
 		scanner:        scanner,
 		isClient:       isClient,
@@ -179,7 +179,7 @@ func (sh *StreamHandler) storageCurrentDocument() {
 			ConnectionID:     ZeroRowID,
 			DocumentIndex:    len(sh.documentsIDs),
 			Payload:          sh.buffer.Bytes(),
-			PayloadString: 	  strings.ToValidUTF8(string(sh.buffer.Bytes()), ""),
+			PayloadString:    strings.ToValidUTF8(string(sh.buffer.Bytes()), ""),
 			BlocksIndexes:    sh.indexes,
 			BlocksTimestamps: sh.timestamps,
 			BlocksLoss:       sh.lossBlocks,

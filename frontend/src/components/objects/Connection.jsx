@@ -26,7 +26,7 @@ import "./Connection.scss";
 import CopyLinkPopover from "./CopyLinkPopover";
 import LinkPopover from "./LinkPopover";
 
-const classNames = require("classnames");
+import classNames from 'classnames';
 
 class Connection extends Component {
 

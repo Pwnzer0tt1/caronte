@@ -29,7 +29,7 @@ import LinkPopover from "../objects/LinkPopover";
 import "./common.scss";
 import "./SearchPane.scss";
 
-const _ = require("lodash");
+import _ from 'lodash';
 
 class SearchPane extends Component {
 

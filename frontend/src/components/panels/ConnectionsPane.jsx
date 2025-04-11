@@ -28,7 +28,7 @@ import Connection from "../objects/Connection";
 import ConnectionMatchedRules from "../objects/ConnectionMatchedRules";
 import "./ConnectionsPane.scss";
 
-const classNames = require("classnames");
+import classNames from 'classnames';
 
 class ConnectionsPane extends Component {
 

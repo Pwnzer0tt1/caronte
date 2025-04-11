@@ -17,8 +17,7 @@
 
 import backend from "../backend";
 import log from "../log";
-
-const _ = require("lodash");
+import _ from "lodash";
 
 class Rules {
 

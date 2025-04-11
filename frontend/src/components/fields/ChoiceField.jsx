@@ -20,7 +20,7 @@ import {randomClassName} from "../../utils";
 import "./ChoiceField.scss";
 import "./common.scss";
 
-const classNames = require("classnames");
+import classNames from 'classnames';
 
 class ChoiceField extends Component {
 

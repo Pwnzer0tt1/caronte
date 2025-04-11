@@ -28,7 +28,7 @@ async function json(method, url, data, json, headers) {
         redirect: "follow",
         referrerPolicy: "no-referrer",
     };
-    const response = await fetch(url, options);
+    const response = await fetch((import.meta.env.DEV?"http://127.0.0.1:3333":"")+url, options);
     const result = {
         statusCode: response.status,
         status: `${response.status} ${response.statusText}`,
@@ -52,7 +52,7 @@ async function download(url, headers) {
         redirect: "follow",
         referrerPolicy: "no-referrer",
     };
-    const response = await fetch(url, options);
+    const response = await fetch((import.meta.env.DEV?"http://127.0.0.1:3333":"")+url, options);
     const result = {
         statusCode: response.status,
         status: `${response.status} ${response.statusText}`,

@@ -22,7 +22,7 @@ class Notifications {
 
     constructor() {
         const location = document.location;
-        this.wsUrl = `${location.protocol === "https:"? "wss" : "ws"}://${location.hostname}${location.port ? ":" + location.port : ""}/ws`;
+        this.wsUrl = `${location.protocol === "https:"? "wss" : "ws"}://${import.meta.env.DEV?"127.0.0.1":location.hostname}${import.meta.env.DEV?":3333":location.port ? ":" + location.port : ""}/ws`;
     }
 
     createWebsocket = () => {
