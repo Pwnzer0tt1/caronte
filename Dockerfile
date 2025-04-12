@@ -14,7 +14,7 @@ RUN export VERSION=$(git describe --tags --abbrev=0)
 RUN go mod download
 RUN go build -ldflags "-X main.Version=$VERSION"
 RUN mkdir -p build 
-RUN cp -r caronte pcaps/ scripts/ shared/ test_data/ build/
+RUN cp -r caronte pcaps/ scripts/ shared/ build/
 
 # Build frontend via yarn
 FROM oven/bun AS frontend_builder
