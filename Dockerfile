@@ -32,7 +32,5 @@ RUN apt-get update && \
   rm -rf /var/lib/apt/lists/*
 
 ENV GIN_MODE=release
-ENV MONGO_HOST=mongo
-ENV MONGO_PORT=27017
 WORKDIR /opt/caronte
-ENTRYPOINT ./caronte -mongo-host ${MONGO_HOST} -mongo-port ${MONGO_PORT} -assembly_memuse_log
+CMD ["./caronte", "-mongo-host", "mongo", "-mongo-port", "27017", "-assembly_memuse_log"]
