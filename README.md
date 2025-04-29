@@ -11,6 +11,8 @@ It reassembles TCP packets captured in pcap files to rebuild TCP connections, an
 The patterns can be defined as regex or using protocol specific rules.
 The connection flows are saved into a database and can be visualized with the web application. REST API are also provided.
 
+This fork contains also the commits of [https://github.com/UlisseLab/caronte](https://github.com/UlisseLab/caronte).
+
 ## Features
 -   immediate installation with docker-compose
 -   no configuration file, settings can be changed via GUI or API
