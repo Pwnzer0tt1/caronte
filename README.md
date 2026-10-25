@@ -1,3 +1,8 @@
+> ---
+>
+> Try our new traffic analyzer based on shovel: https://github.com/Pwnzer0tt1/digger
+>
+> ---
 # `Pwnzer0tt1's caronte$`
 
 [![Deploy Status](https://github.com/pwnzer0tt1/caronte/actions/workflows/deploy.yml/badge.svg)](https://github.com/pwnzer0tt1/caronte/actions/workflows/deploy.yml)
